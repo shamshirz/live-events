@@ -7,12 +7,27 @@ To start your Phoenix server:
 
 Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
 
-Ready to run in production? Please [check our deployment guides](https://hexdocs.pm/phoenix/deployment.html).
+## Demo Instructions 🚀
 
-## Learn more
+1. Visit [`localhost:4000/analyses`](http://localhost:4000/analyses) in your browser
+2. Click "Start New Analysis" to begin a document processing job
+3. Watch as the job progresses through various states:
+   * 📊 Calculating Pages
+   * 🔄 In Progress (with batch processing indicators)
+   * 🔍 Analyzing Results
+   * ✅ Completed
 
-  * Official website: https://www.phoenixframework.org/
-  * Guides: https://hexdocs.pm/phoenix/overview.html
-  * Docs: https://hexdocs.pm/phoenix
-  * Forum: https://elixirforum.com/c/phoenix-forum
-  * Source: https://github.com/phoenixframework/phoenix
+Each job simulates processing a document with multiple pages, showing real-time updates through LiveView!
+
+## Goals
+✅ Experiment with LiveView 1.0
+✅ Experiment with Commanded event sourcing
+✅ Combine event sourcing with pushing updates to liveviews from background jobs
+⏳ Experiment with LangChain / Elixir for AI
+
+## Next Steps
+* Learn about testing ES systems
+* Learn about retrying actions that are the result of a command
+* Make something that actually works
+* Do something with Fly.io?
+* Learn about LangChain / Elixir for AI
