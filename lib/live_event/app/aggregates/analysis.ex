@@ -72,7 +72,7 @@ defmodule LiveEvent.App.Aggregates.Analysis do
     %{job | job_id: job_id, status: :completed}
   end
 
-  defp all_pages_processed(state, job_id) do
+  defp all_pages_processed(_state, job_id) do
     {:ok, %JobCompleted{job_id: job_id}}
   end
 

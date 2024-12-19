@@ -19,6 +19,14 @@ config :live_event, LiveEvent.App.Application,
   pubsub: :local,
   registry: :local
 
+config :live_event, LiveEvent.ScanApp.Application,
+  event_store: [
+    adapter: Commanded.EventStore.Adapters.InMemory,
+    serializer: Commanded.Serialization.JsonSerializer
+  ],
+  pubsub: :local,
+  registry: :local
+
 # Configures the endpoint
 config :live_event, LiveEventWeb.Endpoint,
   url: [host: "localhost"],

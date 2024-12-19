@@ -57,8 +57,10 @@ defmodule LiveEvent.MixProject do
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
       {:commanded, "~> 1.4"},
+      {:commanded_eventstore_adapter, "~> 1.4"},
       {:dns_cluster, "~> 0.1.1"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+      {:uuid, "~> 1.1"}
     ]
   end
 

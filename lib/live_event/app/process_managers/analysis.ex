@@ -9,10 +9,6 @@ defmodule LiveEvent.App.ProcessManagers.Analysis do
     JobCompleted
   }
 
-  alias LiveEvent.App.Commands.ProcessPages
-  alias LiveEvent.App.Commands.StartJob
-  alias LiveEvent.App.Commands.SetTotalPages
-  alias LiveEvent.App.Commands.SetProcessedPages
   alias LiveEvent.DocumentProcessingGateway
 
   require Logger

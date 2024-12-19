@@ -20,6 +20,7 @@ defmodule LiveEvent.Application do
       # {LiveEvent.Worker, arg},
       # Start to serve requests, typically the last entry
       {LiveEvent.App.Supervisor, nil},
+      {LiveEvent.ScanApp.Supervisor, nil},
       LiveEventWeb.Endpoint
     ]
 
