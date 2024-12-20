@@ -63,7 +63,10 @@ defmodule LiveEventWeb.ScanLive do
             border_animation(scan.status)
           ]}>
             <div class="flex justify-between items-center">
-              <h3 class="text-lg font-semibold">Scan: {scan_id}</h3>
+              <h3 class="text-lg font-semibold">
+                {scan.domain}
+                <span class="text-sm font-normal text-gray-500">({scan_id})</span>
+              </h3>
               <span class={[
                 "px-2 py-1 rounded text-sm",
                 status_color(scan.status)
@@ -73,8 +76,6 @@ defmodule LiveEventWeb.ScanLive do
             </div>
 
             <div class="mt-2 text-sm text-gray-600">
-              <p>Domain: {scan.domain}</p>
-
               <%= if scan.domains != [] do %>
                 <div class="mt-2">
                   <p class="font-semibold">Associated Domains:</p>
@@ -107,8 +108,13 @@ defmodule LiveEventWeb.ScanLive do
               <% end %>
 
               <%= if scan.score do %>
-                <div class="mt-2">
+                <div class="mt-2 space-y-1">
                   <p class="font-semibold">Score: {scan.score}</p>
+                  <%= if scan.duration_seconds do %>
+                    <p class="text-sm text-gray-500">
+                      Completed in {format_duration(scan.duration_seconds)}
+                    </p>
+                  <% end %>
                 </div>
               <% end %>
             </div>
@@ -154,5 +160,15 @@ defmodule LiveEventWeb.ScanLive do
       :failed -> "border-error"
       _ -> "animate-border-progress"
     end
+  end
+
+  defp format_duration(seconds) when seconds < 60 do
+    "#{seconds} seconds"
+  end
+
+  defp format_duration(seconds) do
+    minutes = div(seconds, 60)
+    remaining_seconds = rem(seconds, 60)
+    "#{minutes} min #{remaining_seconds} sec"
   end
 end

@@ -1,12 +1,20 @@
 defmodule LiveEvent.ScanApp.ScanIntegrationTest do
   use ExUnit.Case
 
+  import Commanded.Assertions.EventAssertions, only: [assert_receive_event: 3]
+
   alias LiveEvent.ScanApp.Aggregates.Scan
+
+  alias LiveEvent.ScanApp.Events.{
+    DiscoverSubdomainsRequested,
+    DiscoverSubdomainsSucceeded,
+    ScanCompleted
+  }
 
   alias LiveEvent.ScanApp.Commands.{
     StartScan,
-    DiscoverDomains,
-    DiscoverSubdomains,
+    DiscoverDomainsSuccess,
+    DiscoverSubdomainsSuccess,
     CompleteScan
   }
 
@@ -23,29 +31,44 @@ defmodule LiveEvent.ScanApp.ScanIntegrationTest do
 
       commands = [
         %StartScan{scan_id: scan_id, domain: domain},
-        %DiscoverDomains{
+        %DiscoverDomainsSuccess{
           scan_id: scan_id,
-          domain: domain,
           associated_domains: associated_domains
         },
-        %DiscoverSubdomains{scan_id: scan_id, domain: domain, subdomains: subdomains},
-        %DiscoverSubdomains{
+        %DiscoverSubdomainsSuccess{
           scan_id: scan_id,
           domain: hd(associated_domains),
+          subdomains: subdomains
+        },
+        %DiscoverSubdomainsSuccess{
+          scan_id: scan_id,
+          domain: domain,
           subdomains: subdomains
         },
         %CompleteScan{scan_id: scan_id}
       ]
 
-      final_state =
-        Enum.reduce(commands, %Scan{}, fn command, state ->
-          {:ok, event} = Scan.execute(state, command)
-          new_state = Scan.apply(state, event)
-          new_state
-        end)
+      {final_state, events} = process_commands(commands, %Scan{})
 
-      IO.inspect(final_state)
-      assert false
+      assert %ScanCompleted{scan_id: ^scan_id} = hd(events)
     end
+  end
+
+  # We need to handle when the Multi is returned
+  @spec process_commands(list(struct()), struct()) :: {struct(), list(events :: struct())}
+  defp process_commands(commands, state) do
+    Enum.reduce(commands, {state, []}, fn command, {state, past_events} ->
+      events = Scan.execute(state, command)
+
+      events =
+        if is_struct(events, Commanded.Aggregate.Multi) do
+          {state, events} = Commanded.Aggregate.Multi.run(events)
+          events
+        else
+          events
+        end
+
+      {Enum.reduce(events, state, fn ev, acc -> Scan.apply(acc, ev) end), events ++ past_events}
+    end)
   end
 end

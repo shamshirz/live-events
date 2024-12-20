@@ -5,10 +5,13 @@ defmodule LiveEvent.ScanApp.Router do
 
   alias LiveEvent.ScanApp.Commands.{
     StartScan,
-    RequestSubdomainDiscovery,
-    DiscoverDomains,
-    DiscoverSubdomains,
-    CompleteScan
+    DiscoverDomainsSuccess,
+    DiscoverDomainsFail,
+    DiscoverSubdomainsRequest,
+    DiscoverSubdomainsSuccess,
+    DiscoverSubdomainsFail,
+    CompleteScan,
+    FailScan
   }
 
   middleware(Commanded.Middleware.Logger)
@@ -19,7 +22,16 @@ defmodule LiveEvent.ScanApp.Router do
   )
 
   dispatch(
-    [StartScan, DiscoverDomains, RequestSubdomainDiscovery, DiscoverSubdomains, CompleteScan],
+    [
+      StartScan,
+      DiscoverDomainsSuccess,
+      DiscoverDomainsFail,
+      DiscoverSubdomainsRequest,
+      DiscoverSubdomainsSuccess,
+      DiscoverSubdomainsFail,
+      CompleteScan,
+      FailScan
+    ],
     to: Scan
   )
 end

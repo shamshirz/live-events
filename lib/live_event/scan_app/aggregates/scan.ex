@@ -4,27 +4,36 @@ defmodule LiveEvent.ScanApp.Aggregates.Scan do
   Accept commands and turn them into events if they pass validation.
   * StartScan -> ScanStarted
   * DiscoverDomains -> DiscoveredDomains
-  * RequestSubdomainDiscovery -> DiscoverSubdomainsRequested
+  * DiscoverSubdomainsRequest -> DiscoverSubdomainsRequested
   * DiscoverSubdomains -> DiscoveredSubdomains
   * CompleteScan -> ScanCompleted
   """
+
   alias LiveEvent.ScanApp.Events.{
     ScanStarted,
-    DiscoveredDomains,
-    DiscoveredSubdomains,
+    DiscoverDomainsRequested,
+    DiscoverDomainsSucceeded,
+    DiscoverDomainsFailed,
     DiscoverSubdomainsRequested,
+    DiscoverSubdomainsSucceeded,
+    DiscoverSubdomainsFailed,
     ScanCompleted,
     ScanFailed
   }
 
   alias LiveEvent.ScanApp.Commands.{
-    FailScan,
     StartScan,
-    DiscoverDomains,
-    DiscoverSubdomains,
-    RequestSubdomainDiscovery,
+    DiscoverDomainsSuccess,
+    DiscoverDomainsFail,
+    DiscoverSubdomainsRequest,
+    DiscoverSubdomainsSuccess,
+    DiscoverSubdomainsFail,
     CompleteScan
   }
+
+  alias Commanded.Aggregate.Multi
+
+  @type status :: :started | :domains_discovered | :subdomains_discovered | :completed | :failed
 
   defstruct [
     :scan_id,
@@ -37,57 +46,75 @@ defmodule LiveEvent.ScanApp.Aggregates.Scan do
   ]
 
   # Command handlers
-  def execute(%__MODULE__{scan_id: nil}, %StartScan{scan_id: scan_id, domain: domain}) do
-    {:ok, %ScanStarted{scan_id: scan_id, domain: domain, started_at: DateTime.utc_now()}}
+  def execute(%__MODULE__{scan_id: nil} = scan, %StartScan{scan_id: scan_id, domain: domain}) do
+    scan
+    |> Multi.new()
+    |> Multi.execute(fn _ -> start_scan(scan_id, domain) end)
+    |> Multi.execute(fn _ -> request_domains_discovery(scan_id, domain) end)
   end
 
   # The domains were discovered and are posted here to be turned into an event.
-  def execute(%__MODULE__{status: :started} = _scan, %DiscoverDomains{
+  def execute(%__MODULE__{status: :started} = _scan, %DiscoverDomainsSuccess{
         scan_id: scan_id,
-        domain: domain,
         associated_domains: associated_domains
       }) do
-    {:ok, %DiscoveredDomains{scan_id: scan_id, domains: [domain | associated_domains]}}
+    [%DiscoverDomainsSucceeded{scan_id: scan_id, associated_domains: associated_domains}]
   end
 
-  def execute(%__MODULE__{} = _scan, %RequestSubdomainDiscovery{
+  def execute(%__MODULE__{status: :started} = _scan, %DiscoverDomainsFail{
+        scan_id: scan_id,
+        error: error
+      }) do
+    [%DiscoverDomainsFailed{scan_id: scan_id, error: error}]
+  end
+
+  def execute(%__MODULE__{} = _scan, %DiscoverSubdomainsRequest{
         scan_id: scan_id,
         domain: domain
       }) do
-    {:ok, %DiscoverSubdomainsRequested{scan_id: scan_id, domain: domain}}
+    [%DiscoverSubdomainsRequested{scan_id: scan_id, domain: domain}]
   end
 
-  # The subdomains were discovered and are posted here to be turned into an event.
-  def execute(%__MODULE__{status: :domains_discovered} = _scan, %DiscoverSubdomains{
+  def execute(%__MODULE__{status: :domains_discovered} = _scan, %DiscoverSubdomainsSuccess{
         scan_id: scan_id,
         domain: domain,
         subdomains: subdomains
       }) do
-    # This is where a gateway or something listens to this event and kicks off the side-effects
-    #  We use the DomainsGateway to listen for this event
-    {:ok,
-     %DiscoveredSubdomains{
-       scan_id: scan_id,
-       domain: domain,
-       subdomains: subdomains
-     }}
+    [
+      %DiscoverSubdomainsSucceeded{
+        scan_id: scan_id,
+        domain: domain,
+        subdomains: subdomains
+      }
+    ]
+  end
+
+  def execute(%__MODULE__{status: :domains_discovered} = _scan, %DiscoverSubdomainsFail{
+        scan_id: scan_id,
+        domain: domain,
+        error: error
+      }) do
+    [
+      %DiscoverSubdomainsFailed{
+        scan_id: scan_id,
+        domain: domain,
+        error: error
+      }
+    ]
   end
 
   def execute(%__MODULE__{status: :subdomains_discovered} = scan, %CompleteScan{scan_id: scan_id}) do
     score = calculate_score(scan)
 
-    {:ok,
-     %ScanCompleted{
-       scan_id: scan_id,
-       score: score,
-       domains: scan.domains,
-       subdomains: scan.subdomains,
-       completed_at: DateTime.utc_now()
-     }}
-  end
-
-  def execute(%__MODULE__{} = _scan, %FailScan{scan_id: scan_id, error: error}) do
-    {:ok, %ScanFailed{scan_id: scan_id, error: error}}
+    [
+      %ScanCompleted{
+        scan_id: scan_id,
+        score: score,
+        domains: scan.domains,
+        subdomains: scan.subdomains,
+        completed_at: DateTime.utc_now()
+      }
+    ]
   end
 
   # State mutators
@@ -95,18 +122,30 @@ defmodule LiveEvent.ScanApp.Aggregates.Scan do
     %__MODULE__{state | scan_id: scan_id, domain: domain, status: :started}
   end
 
-  def apply(%__MODULE__{} = state, %DiscoveredDomains{domains: domains}) do
-    %__MODULE__{state | domains: domains, status: :domains_discovered}
+  def apply(%__MODULE__{} = state, %DiscoverDomainsRequested{}) do
+    state
+  end
+
+  def apply(%__MODULE__{} = state, %DiscoverDomainsSucceeded{
+        associated_domains: associated_domains
+      }) do
+    %__MODULE__{state | domains: associated_domains, status: :domains_discovered}
   end
 
   def apply(%__MODULE__{} = state, %DiscoverSubdomainsRequested{}) do
     state
   end
 
-  def apply(%__MODULE__{} = state, %DiscoveredSubdomains{domain: domain, subdomains: subdomains}) do
+  # Fill in domain key with subdomains, if they are all present, set status to subdomains_discovered
+  def apply(%__MODULE__{} = state, %DiscoverSubdomainsSucceeded{
+        domain: domain,
+        subdomains: subdomains
+      }) do
     updated_subdomains = Map.put(state.subdomains, domain, subdomains)
 
-    case Enum.all?(state.domains, fn domain -> Map.has_key?(updated_subdomains, domain) end) do
+    case Enum.all?([state.domain | state.domains], fn domain ->
+           Map.has_key?(updated_subdomains, domain)
+         end) do
       true ->
         %__MODULE__{state | status: :subdomains_discovered, subdomains: updated_subdomains}
 
@@ -125,6 +164,14 @@ defmodule LiveEvent.ScanApp.Aggregates.Scan do
 
   def new(scan_id, domain) do
     %__MODULE__{scan_id: scan_id, domain: domain, status: :started}
+  end
+
+  defp start_scan(scan_id, domain) do
+    %ScanStarted{scan_id: scan_id, domain: domain}
+  end
+
+  defp request_domains_discovery(scan_id, domain) do
+    %DiscoverDomainsRequested{scan_id: scan_id, domain: domain}
   end
 
   defp calculate_score(scan) do

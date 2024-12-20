@@ -8,8 +8,8 @@ defmodule LiveEvent.ScanApp.Projectors.Scan do
   """
   alias LiveEvent.ScanApp.Events.{
     ScanStarted,
-    DiscoveredDomains,
-    DiscoveredSubdomains,
+    DiscoverDomainsSucceeded,
+    DiscoverSubdomainsSucceeded,
     DiscoverSubdomainsRequested,
     ScanCompleted
   }
@@ -26,7 +26,20 @@ defmodule LiveEvent.ScanApp.Projectors.Scan do
     {:ok, config}
   end
 
-  def handle(%ScanStarted{scan_id: scan_id, domain: domain}, _metadata) do
+  # metadata
+  # %{
+  #   :causation_id => "db1ebd30-7d3c-40f7-87cd-12cd9966df32",
+  #   :correlation_id => "1599630b-9c38-433c-9548-0dd793108ba0",
+  #   :created_at => #DateTime<2017-10-30 11:19:56.178901Z>,
+  #   :event_id => "5e4a0f38-385b-4d57-823b-a1bcf705b7bb",
+  #   :event_number => 12345,
+  #   :stream_id => "e42a588d-2cda-4314-a471-5d008cce01fc",
+  #   :stream_version => 1,
+  #   "issuer_id" => "0768d69a-d2b7-48f4-d0e9-083a97f7ebe0",
+  #   "user_id" => "user@example.com"
+  # }
+
+  def handle(%ScanStarted{scan_id: scan_id, domain: domain}, metadata) do
     scan = %{
       scan_id: scan_id,
       domain: domain,
@@ -34,7 +47,8 @@ defmodule LiveEvent.ScanApp.Projectors.Scan do
       domains: [],
       subdomains: %{},
       score: nil,
-      started_at: DateTime.utc_now()
+      created_at: metadata.created_at,
+      duration_seconds: nil
     }
 
     :ets.insert(:scans, {scan_id, scan})
@@ -42,7 +56,7 @@ defmodule LiveEvent.ScanApp.Projectors.Scan do
     :ok
   end
 
-  def handle(%DiscoveredDomains{scan_id: scan_id, domains: domains}, _metadata) do
+  def handle(%DiscoverDomainsSucceeded{scan_id: scan_id, associated_domains: domains}, _metadata) do
     update(scan_id, %{
       status: :discovering_subdomains,
       domains: domains
@@ -61,7 +75,7 @@ defmodule LiveEvent.ScanApp.Projectors.Scan do
   end
 
   def handle(
-        %DiscoveredSubdomains{scan_id: scan_id, domain: domain, subdomains: subdomains},
+        %DiscoverSubdomainsSucceeded{scan_id: scan_id, domain: domain, subdomains: subdomains},
         _metadata
       ) do
     update(scan_id, %{status: :discovering_subdomains, subdomains: %{domain => subdomains}})
@@ -70,10 +84,15 @@ defmodule LiveEvent.ScanApp.Projectors.Scan do
   end
 
   def handle(%ScanCompleted{scan_id: scan_id, score: score}, _metadata) do
+    [{^scan_id, scan}] = :ets.lookup(:scans, scan_id)
+
+    duration_seconds = DateTime.diff(DateTime.utc_now(), scan.created_at)
+
     update(scan_id, %{
       status: :completed,
       score: score,
-      completed_at: DateTime.utc_now()
+      completed_at: DateTime.utc_now(),
+      duration_seconds: duration_seconds
     })
 
     :ok

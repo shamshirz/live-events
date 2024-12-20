@@ -20,7 +20,7 @@ defmodule LiveEvent.ScanApp.Supervisor do
       ScanApp.Projectors.Scan,
 
       # Domain Gateway
-      LiveEvent.DomainGateway
+      LiveEvent.ScanApp.Gateways.DomainGateway
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

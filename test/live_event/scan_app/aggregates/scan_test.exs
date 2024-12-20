@@ -1,22 +1,23 @@
 defmodule LiveEvent.ScanApp.Aggregates.ScanTest do
+  # TODO: Never test internal state.
   use ExUnit.Case
 
   alias LiveEvent.ScanApp.Aggregates.Scan
 
   alias LiveEvent.ScanApp.Commands.{
     StartScan,
-    DiscoverDomains,
-    DiscoverSubdomains,
+    DiscoverDomainsSuccess,
+    DiscoverSubdomainsSuccess,
     CompleteScan,
-    RequestSubdomainDiscovery
+    DiscoverSubdomainsRequest
   }
 
   alias LiveEvent.ScanApp.Events.{
     ScanStarted,
-    DiscoveredDomains,
+    DiscoverDomainsSucceeded,
     DiscoverSubdomainsRequested,
-    ScanCompleted,
-    DiscoveredSubdomains
+    DiscoverSubdomainsSucceeded,
+    ScanCompleted
   }
 
   describe "start scan" do
@@ -29,8 +30,7 @@ defmodule LiveEvent.ScanApp.Aggregates.ScanTest do
         domain: domain
       }
 
-      assert {:ok, %ScanStarted{scan_id: ^scan_id, domain: ^domain}} =
-               Scan.execute(%Scan{}, command)
+      assert %{executions: [_one, _two]} = Scan.execute(%Scan{}, command)
     end
   end
 
@@ -39,13 +39,17 @@ defmodule LiveEvent.ScanApp.Aggregates.ScanTest do
       initial_state = Scan.new("123id", "example.com")
       associated_domains = ["example1.com", "example2.com"]
 
-      command = %DiscoverDomains{
+      command = %DiscoverDomainsSuccess{
         scan_id: "123id",
-        domain: "example.com",
         associated_domains: associated_domains
       }
 
-      assert {:ok, %DiscoveredDomains{scan_id: "123id", domains: ^associated_domains}} =
+      assert [
+               %DiscoverDomainsSucceeded{
+                 scan_id: "123id",
+                 associated_domains: ^associated_domains
+               }
+             ] =
                Scan.execute(initial_state, command)
     end
   end
@@ -54,16 +58,17 @@ defmodule LiveEvent.ScanApp.Aggregates.ScanTest do
     test "requests subdomain discovery for a domain" do
       initial_state = Scan.new("123id", "example.com")
 
-      command = %RequestSubdomainDiscovery{
+      command = %DiscoverSubdomainsRequest{
         scan_id: "123id",
         domain: "example.com"
       }
 
-      assert {:ok,
-              %DiscoverSubdomainsRequested{
-                scan_id: "123id",
-                domain: "example.com"
-              }} = Scan.execute(initial_state, command)
+      assert [
+               %DiscoverSubdomainsRequested{
+                 scan_id: "123id",
+                 domain: "example.com"
+               }
+             ] = Scan.execute(initial_state, command)
     end
   end
 
@@ -77,18 +82,19 @@ defmodule LiveEvent.ScanApp.Aggregates.ScanTest do
 
       subdomains = ["sub1.example.com", "sub2.example.com"]
 
-      command = %DiscoverSubdomains{
+      command = %DiscoverSubdomainsSuccess{
         scan_id: "123id",
         domain: "example.com",
         subdomains: subdomains
       }
 
-      assert {:ok,
-              %DiscoveredSubdomains{
-                scan_id: "123id",
-                domain: "example.com",
-                subdomains: ^subdomains
-              }} = Scan.execute(initial_state, command)
+      assert [
+               %DiscoverSubdomainsSucceeded{
+                 scan_id: "123id",
+                 domain: "example.com",
+                 subdomains: ^subdomains
+               }
+             ] = Scan.execute(initial_state, command)
     end
   end
 
@@ -115,8 +121,7 @@ defmodule LiveEvent.ScanApp.Aggregates.ScanTest do
         scan_id: scan_id
       }
 
-      assert {:ok, %ScanCompleted{scan_id: ^scan_id} = event} =
-               Scan.execute(initial_state, command)
+      assert [%ScanCompleted{scan_id: ^scan_id} = event] = Scan.execute(initial_state, command)
 
       assert event.score > 0
       assert event.domains == domains
@@ -141,7 +146,7 @@ defmodule LiveEvent.ScanApp.Aggregates.ScanTest do
     test "applies domains discovered event" do
       scan_id = UUID.uuid4()
       domains = ["example1.com", "example2.com"]
-      event = %DiscoveredDomains{scan_id: scan_id, domains: domains}
+      event = %DiscoverDomainsSucceeded{scan_id: scan_id, associated_domains: domains}
 
       state = Scan.apply(%Scan{scan_id: scan_id}, event)
 
@@ -176,7 +181,7 @@ defmodule LiveEvent.ScanApp.Aggregates.ScanTest do
         subdomains: %{}
       }
 
-      event = %DiscoveredSubdomains{
+      event = %DiscoverSubdomainsSucceeded{
         scan_id: scan_id,
         domain: domain,
         subdomains: subdomains
