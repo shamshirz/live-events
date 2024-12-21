@@ -1,11 +1,25 @@
 import Config
 
 # Configure your database
+# config :live_event, LiveEvent.Repo,
+#   database: Path.expand("../live_event_dev.db", __DIR__),
+#   pool_size: 5,
+#   stacktrace: true,
+#   show_sensitive_data_on_connection_error: true
+
 config :live_event, LiveEvent.Repo,
-  database: Path.expand("../live_event_dev.db", __DIR__),
-  pool_size: 5,
-  stacktrace: true,
-  show_sensitive_data_on_connection_error: true
+  database: "live_event_dev",
+  username: "postgres",
+  password: "mysecretpassword",
+  hostname: "localhost"
+
+config :live_event, LiveEvent.EventStore,
+  serializer: Commanded.Serialization.JsonSerializer,
+  username: "postgres",
+  password: "mysecretpassword",
+  database: "eventstore_dev",
+  hostname: "localhost",
+  pool_size: 10
 
 # For development, we disable any cache and enable
 # debugging and code reloading.

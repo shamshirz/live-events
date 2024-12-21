@@ -10,6 +10,14 @@ config :live_event, LiveEvent.Repo,
   pool_size: 5,
   pool: Ecto.Adapters.SQL.Sandbox
 
+config :live_event, LiveEvent.ScanApp.Application,
+  event_store: [
+    adapter: Commanded.EventStore.Adapters.InMemory,
+    serializer: Commanded.Serialization.JsonSerializer
+  ],
+  pubsub: :local,
+  registry: :local
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :live_event, LiveEventWeb.Endpoint,

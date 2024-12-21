@@ -8,6 +8,7 @@ defmodule LiveEvent.ScanApp.Aggregates.Scan do
   * DiscoverSubdomains -> DiscoveredSubdomains
   * CompleteScan -> ScanCompleted
   """
+  require Logger
 
   alias LiveEvent.ScanApp.Events.{
     ScanStarted,
@@ -23,11 +24,13 @@ defmodule LiveEvent.ScanApp.Aggregates.Scan do
 
   alias LiveEvent.ScanApp.Commands.{
     StartScan,
+    DiscoverDomainsRequest,
     DiscoverDomainsSuccess,
     DiscoverDomainsFail,
     DiscoverSubdomainsRequest,
     DiscoverSubdomainsSuccess,
     DiscoverSubdomainsFail,
+    FailScan,
     CompleteScan
   }
 
@@ -53,6 +56,13 @@ defmodule LiveEvent.ScanApp.Aggregates.Scan do
     |> Multi.execute(fn _ -> request_domains_discovery(scan_id, domain) end)
   end
 
+  def execute(%__MODULE__{status: :started} = _scan, %DiscoverDomainsRequest{
+        scan_id: scan_id,
+        domain: domain
+      }) do
+    [%DiscoverDomainsRequested{scan_id: scan_id, domain: domain}]
+  end
+
   # The domains were discovered and are posted here to be turned into an event.
   def execute(%__MODULE__{status: :started} = _scan, %DiscoverDomainsSuccess{
         scan_id: scan_id,
@@ -61,11 +71,11 @@ defmodule LiveEvent.ScanApp.Aggregates.Scan do
     [%DiscoverDomainsSucceeded{scan_id: scan_id, associated_domains: associated_domains}]
   end
 
-  def execute(%__MODULE__{status: :started} = _scan, %DiscoverDomainsFail{
+  def execute(%__MODULE__{status: :started, domain: domain} = _scan, %DiscoverDomainsFail{
         scan_id: scan_id,
         error: error
       }) do
-    [%DiscoverDomainsFailed{scan_id: scan_id, error: error}]
+    [%DiscoverDomainsFailed{scan_id: scan_id, domain: domain, error: error}]
   end
 
   def execute(%__MODULE__{} = _scan, %DiscoverSubdomainsRequest{
@@ -103,6 +113,15 @@ defmodule LiveEvent.ScanApp.Aggregates.Scan do
     ]
   end
 
+  def execute(%__MODULE__{} = _scan, %FailScan{scan_id: scan_id, error: error}) do
+    [
+      %ScanFailed{
+        scan_id: scan_id,
+        error: error
+      }
+    ]
+  end
+
   def execute(%__MODULE__{status: :subdomains_discovered} = scan, %CompleteScan{scan_id: scan_id}) do
     score = calculate_score(scan)
 
@@ -115,6 +134,11 @@ defmodule LiveEvent.ScanApp.Aggregates.Scan do
         completed_at: DateTime.utc_now()
       }
     ]
+  end
+
+  def execute(_, command) do
+    Logger.error("Command not processable: #{inspect(command)}")
+    []
   end
 
   # State mutators

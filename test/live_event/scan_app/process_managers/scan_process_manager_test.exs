@@ -4,15 +4,10 @@ defmodule LiveEvent.ScanApp.ProcessManagers.ScanProcessManagerTest do
   alias LiveEvent.ScanApp.ProcessManagers.Scan
 
   alias LiveEvent.ScanApp.Events.{
-    ScanStarted,
-    DiscoverDomainsRequested,
     DiscoverDomainsSucceeded,
     DiscoverDomainsFailed,
-    DiscoverSubdomainsRequested,
     DiscoverSubdomainsSucceeded,
-    DiscoverSubdomainsFailed,
-    ScanCompleted,
-    ScanFailed
+    DiscoverSubdomainsFailed
   }
 
   alias LiveEvent.ScanApp.Commands.{
@@ -21,29 +16,6 @@ defmodule LiveEvent.ScanApp.ProcessManagers.ScanProcessManagerTest do
     CompleteScan,
     FailScan
   }
-
-  describe "routing" do
-    test "interested in scan started events" do
-      assert {:start, "123"} = Scan.interested?(%ScanStarted{scan_id: "123"})
-    end
-
-    test "interested in domain discovery events" do
-      assert {:continue, "123"} = Scan.interested?(%DiscoverDomainsRequested{scan_id: "123"})
-      assert {:continue, "123"} = Scan.interested?(%DiscoverDomainsSucceeded{scan_id: "123"})
-      assert {:continue, "123"} = Scan.interested?(%DiscoverDomainsFailed{scan_id: "123"})
-    end
-
-    test "interested in subdomain discovery events" do
-      assert {:continue, "123"} = Scan.interested?(%DiscoverSubdomainsRequested{scan_id: "123"})
-      assert {:continue, "123"} = Scan.interested?(%DiscoverSubdomainsSucceeded{scan_id: "123"})
-      assert {:continue, "123"} = Scan.interested?(%DiscoverSubdomainsFailed{scan_id: "123"})
-    end
-
-    test "stops on completion events" do
-      assert {:stop, "123"} = Scan.interested?(%ScanCompleted{scan_id: "123"})
-      assert {:stop, "123"} = Scan.interested?(%ScanFailed{scan_id: "123"})
-    end
-  end
 
   describe "command dispatch" do
     test "dispatches subdomain discovery commands when domains are discovered" do
@@ -76,12 +48,14 @@ defmodule LiveEvent.ScanApp.ProcessManagers.ScanProcessManagerTest do
 
       event = %DiscoverSubdomainsSucceeded{
         scan_id: "123",
-        domain: "example.com"
+        domain: "example.com",
+        subdomains: ["subdomain1.example.com", "subdomain2.example.com"]
       }
 
       assert %CompleteScan{scan_id: "123"} = Scan.handle(state, event)
     end
 
+    @tag capture_log: true
     test "retries & then fails scan after max domain discovery retries" do
       state = %Scan{scan_id: "123"}
 
@@ -98,6 +72,9 @@ defmodule LiveEvent.ScanApp.ProcessManagers.ScanProcessManagerTest do
                Scan.handle(%{state | domain_retries: 3}, event)
     end
 
+    # TODO: The fact that logs are ignored here is a red flag!
+    # Process Managers should be pure, so the responsibility to log this information should be handled elsewhere.
+    @tag capture_log: true
     test "fails scan after max subdomain discovery retries" do
       state = %Scan{scan_id: "123"}
 

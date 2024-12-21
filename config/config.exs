@@ -11,6 +11,7 @@ config :live_event,
   ecto_repos: [LiveEvent.Repo],
   generators: [timestamp_type: :utc_datetime, binary_id: true]
 
+# In memory event store for the main application, this is an example Commanded App
 config :live_event, LiveEvent.App.Application,
   event_store: [
     adapter: Commanded.EventStore.Adapters.InMemory,
@@ -19,13 +20,7 @@ config :live_event, LiveEvent.App.Application,
   pubsub: :local,
   registry: :local
 
-config :live_event, LiveEvent.ScanApp.Application,
-  event_store: [
-    adapter: Commanded.EventStore.Adapters.InMemory,
-    serializer: Commanded.Serialization.JsonSerializer
-  ],
-  pubsub: :local,
-  registry: :local
+config :live_event, event_stores: [LiveEvent.EventStore]
 
 # Configures the endpoint
 config :live_event, LiveEventWeb.Endpoint,

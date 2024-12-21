@@ -8,6 +8,15 @@ import Config
 config :live_event, LiveEventWeb.Endpoint,
   cache_static_manifest: "priv/static/cache_manifest.json"
 
+# Probably prod config
+config :live_event, LiveEvent.EventStore,
+  serializer: Commanded.Serialization.JsonSerializer,
+  username: "postgres",
+  password: "postgres",
+  database: "eventstore_dev",
+  hostname: "localhost",
+  pool_size: 10
+
 # Configures Swoosh API Client
 config :swoosh, api_client: Swoosh.ApiClient.Finch, finch_name: LiveEvent.Finch
 

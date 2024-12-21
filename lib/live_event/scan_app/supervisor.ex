@@ -17,7 +17,9 @@ defmodule LiveEvent.ScanApp.Supervisor do
       ScanApp.ProcessManagers.Scan,
 
       # Projectors (read model)
-      ScanApp.Projectors.Scan,
+      # ScanApp.Projectors.Scan,
+      {LiveEvent.ScanApp.Projectors.ScanEctoProjector,
+       application: LiveEvent.ScanApp.Application, name: "scan_projection"},
 
       # Domain Gateway
       LiveEvent.ScanApp.Gateways.DomainGateway

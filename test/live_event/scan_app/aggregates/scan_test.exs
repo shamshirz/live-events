@@ -199,7 +199,14 @@ defmodule LiveEvent.ScanApp.Aggregates.ScanTest do
     test "applies scan completed event" do
       scan_id = UUID.uuid4()
       score = 42
-      event = %ScanCompleted{scan_id: scan_id, score: score}
+
+      event = %ScanCompleted{
+        scan_id: scan_id,
+        score: score,
+        completed_at: DateTime.utc_now(),
+        domains: ["example.com"],
+        subdomains: %{"example.com" => ["sub1.example.com", "sub2.example.com"]}
+      }
 
       state = Scan.apply(%Scan{scan_id: scan_id}, event)
 
@@ -235,6 +242,7 @@ defmodule LiveEvent.ScanApp.Aggregates.ScanTest do
 
       event = %DiscoverDomainsFailed{
         scan_id: "123id",
+        domain: "example.com",
         error: "API timeout"
       }
 

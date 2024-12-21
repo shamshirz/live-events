@@ -1,6 +1,7 @@
 defmodule LiveEventWeb.ScanLive do
   use LiveEventWeb, :live_view
-  alias LiveEvent.ScanApp.Projectors.Scan
+  alias LiveEvent.Repo
+  alias LiveEvent.ScanApp.Projectors.ScanProjection
   alias LiveEvent.ScanApp.Commands.StartScan
   alias LiveEvent.ScanApp.Application
 
@@ -9,7 +10,20 @@ defmodule LiveEventWeb.ScanLive do
       Phoenix.PubSub.subscribe(LiveEvent.PubSub, "scans")
     end
 
-    scans = Scan.all()
+    scans =
+      ScanProjection
+      |> Repo.all()
+      |> Enum.map(fn scan -> {scan.scan_id, scan} end)
+      |> Enum.sort_by(
+        fn {_, scan} ->
+          case scan do
+            %{created_at: created_at} when not is_nil(created_at) -> DateTime.to_unix(created_at)
+            _ -> 0
+          end
+        end,
+        :desc
+      )
+
     {:ok, assign(socket, scans: scans)}
   end
 
@@ -21,7 +35,7 @@ defmodule LiveEventWeb.ScanLive do
       |> Enum.sort_by(
         fn {_, scan} ->
           case scan do
-            %{started_at: started_at} -> DateTime.to_unix(started_at)
+            %{created_at: created_at} when not is_nil(created_at) -> DateTime.to_unix(created_at)
             _ -> 0
           end
         end,

@@ -1,7 +1,12 @@
 defmodule LiveEvent.ScanApp.Application do
   require Logger
 
-  use Commanded.Application, otp_app: :live_event
+  use Commanded.Application,
+    otp_app: :live_event,
+    event_store: [
+      adapter: Commanded.EventStore.Adapters.EventStore,
+      event_store: LiveEvent.EventStore
+    ]
 
   router(LiveEvent.ScanApp.Router)
 
