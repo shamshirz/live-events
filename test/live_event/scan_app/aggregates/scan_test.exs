@@ -9,7 +9,9 @@ defmodule LiveEvent.ScanApp.Aggregates.ScanTest do
     DiscoverDomainsSuccess,
     DiscoverSubdomainsSuccess,
     CompleteScan,
-    DiscoverSubdomainsRequest
+    DiscoverSubdomainsRequest,
+    DiscoverDomainsFail,
+    DiscoverSubdomainsFail
   }
 
   alias LiveEvent.ScanApp.Events.{
@@ -17,7 +19,9 @@ defmodule LiveEvent.ScanApp.Aggregates.ScanTest do
     DiscoverDomainsSucceeded,
     DiscoverSubdomainsRequested,
     DiscoverSubdomainsSucceeded,
-    ScanCompleted
+    ScanCompleted,
+    DiscoverDomainsFailed,
+    DiscoverSubdomainsFailed
   }
 
   describe "start scan" do
@@ -201,6 +205,87 @@ defmodule LiveEvent.ScanApp.Aggregates.ScanTest do
 
       assert state.status == :completed
       assert state.score == score
+    end
+  end
+
+  describe "domain discovery failures" do
+    test "handles domain discovery failure" do
+      initial_state = Scan.new("123id", "example.com")
+      error_message = "API timeout"
+
+      command = %DiscoverDomainsFail{
+        scan_id: "123id",
+        error: error_message
+      }
+
+      assert [
+               %DiscoverDomainsFailed{
+                 scan_id: "123id",
+                 error: ^error_message
+               }
+             ] = Scan.execute(initial_state, command)
+    end
+
+    test "maintains state after domain discovery failure" do
+      initial_state = %Scan{
+        scan_id: "123id",
+        domain: "example.com",
+        status: :started
+      }
+
+      event = %DiscoverDomainsFailed{
+        scan_id: "123id",
+        error: "API timeout"
+      }
+
+      state = Scan.apply(initial_state, event)
+      assert state.status == :started
+    end
+  end
+
+  describe "subdomain discovery failures" do
+    test "handles subdomain discovery failure" do
+      initial_state = %Scan{
+        scan_id: "123id",
+        domain: "example.com",
+        status: :domains_discovered
+      }
+
+      error_message = "Subdomain API error"
+
+      command = %DiscoverSubdomainsFail{
+        scan_id: "123id",
+        domain: "example.com",
+        error: error_message
+      }
+
+      assert [
+               %DiscoverSubdomainsFailed{
+                 scan_id: "123id",
+                 domain: "example.com",
+                 error: ^error_message
+               }
+             ] = Scan.execute(initial_state, command)
+    end
+
+    test "maintains state after subdomain discovery failure" do
+      initial_state = %Scan{
+        scan_id: "123id",
+        domain: "example.com",
+        status: :domains_discovered,
+        domains: ["example.com"],
+        subdomains: %{}
+      }
+
+      event = %DiscoverSubdomainsFailed{
+        scan_id: "123id",
+        domain: "example.com",
+        error: "API timeout"
+      }
+
+      state = Scan.apply(initial_state, event)
+      assert state.status == :domains_discovered
+      assert state.subdomains == %{}
     end
   end
 end

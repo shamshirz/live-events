@@ -110,8 +110,6 @@ defmodule LiveEvent.ScanApp.Projectors.Scan do
         Map.merge(scan, attrs)
       end
 
-    IO.inspect(new_scan, label: "new_scan")
-
     :ets.insert(:scans, {scan_id, new_scan})
     broadcast_update(new_scan)
   end

@@ -19,20 +19,23 @@ defmodule LiveEvent.ScanApp.ProcessManagers.Scan do
     name: __MODULE__,
     idle_timeout: :timer.minutes(2)
 
+  require Logger
+
   alias LiveEvent.ScanApp.Events.{
     ScanStarted,
+    DiscoverDomainsFailed,
     DiscoverDomainsRequested,
     DiscoverDomainsSucceeded,
-    DiscoverDomainsFailed,
+    DiscoverSubdomainsFailed,
     DiscoverSubdomainsRequested,
     DiscoverSubdomainsSucceeded,
-    DiscoverSubdomainsFailed,
     ScanCompleted,
     ScanFailed
   }
 
   alias LiveEvent.ScanApp.Commands.{
     DiscoverSubdomainsRequest,
+    DiscoverDomainsRequest,
     CompleteScan,
     FailScan
   }
@@ -56,12 +59,12 @@ defmodule LiveEvent.ScanApp.ProcessManagers.Scan do
 
   # Router
   def interested?(%ScanStarted{scan_id: scan_id}), do: {:start, scan_id}
+  def interested?(%DiscoverDomainsFailed{scan_id: scan_id}), do: {:continue, scan_id}
   def interested?(%DiscoverDomainsRequested{scan_id: scan_id}), do: {:continue, scan_id}
   def interested?(%DiscoverDomainsSucceeded{scan_id: scan_id}), do: {:continue, scan_id}
-  def interested?(%DiscoverDomainsFailed{scan_id: scan_id}), do: {:continue, scan_id}
+  def interested?(%DiscoverSubdomainsFailed{scan_id: scan_id}), do: {:continue, scan_id}
   def interested?(%DiscoverSubdomainsRequested{scan_id: scan_id}), do: {:continue, scan_id}
   def interested?(%DiscoverSubdomainsSucceeded{scan_id: scan_id}), do: {:continue, scan_id}
-  def interested?(%DiscoverSubdomainsFailed{scan_id: scan_id}), do: {:continue, scan_id}
   def interested?(%ScanFailed{scan_id: scan_id}), do: {:stop, scan_id}
   def interested?(%ScanCompleted{scan_id: scan_id}), do: {:stop, scan_id}
   def interested?(_event), do: false
@@ -81,6 +84,20 @@ defmodule LiveEvent.ScanApp.ProcessManagers.Scan do
       })
       when domain_retries >= @max_domain_retries do
     %FailScan{scan_id: scan_id, error: "Max DomainDiscovery retries reached"}
+  end
+
+  def handle(%__MODULE__{domain_retries: domain_retries}, %DiscoverDomainsFailed{
+        scan_id: scan_id,
+        domain: domain
+      }) do
+    Logger.warning(
+      "#{__MODULE__}: DiscoverDomainsFailed - Retrying (#{domain_retries + 1}/#{@max_domain_retries})",
+      retry_count: domain_retries,
+      domain: domain,
+      scan_id: scan_id
+    )
+
+    [%DiscoverDomainsRequest{scan_id: scan_id, domain: domain}]
   end
 
   # When we discovered subdomains, we track the completion of the subdomain discovery step.
@@ -106,6 +123,20 @@ defmodule LiveEvent.ScanApp.ProcessManagers.Scan do
       })
       when subdomain_retries >= @max_subdomain_retries do
     %FailScan{scan_id: scan_id, error: "Max SubdomainDiscovery retries reached"}
+  end
+
+  def handle(%__MODULE__{subdomain_retries: subdomain_retries}, %DiscoverSubdomainsFailed{
+        scan_id: scan_id,
+        domain: domain
+      }) do
+    Logger.warning(
+      "#{__MODULE__}: DiscoverSubdomainsFailed - Retrying (#{subdomain_retries + 1}/#{@max_subdomain_retries})",
+      retry_count: subdomain_retries,
+      domain: domain,
+      scan_id: scan_id
+    )
+
+    [%DiscoverSubdomainsRequest{scan_id: scan_id, domain: domain}]
   end
 
   # State mutators

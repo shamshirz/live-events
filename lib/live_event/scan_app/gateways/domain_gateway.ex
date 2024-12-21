@@ -6,15 +6,17 @@ defmodule LiveEvent.ScanApp.Gateways.DomainGateway do
   * I listen to events
   * I perform side effects
   * I dispatch commands to the Aggregate
+
+  TODO: The problem here is that there is only 1 instance of this event handler, so it processes each event serially.
+  I want to process the domain events in parallel.
   """
 
   use Commanded.Event.Handler,
     application: LiveEvent.ScanApp.Application,
-    name: __MODULE__,
-    consistency: :strong
+    name: __MODULE__
 
   alias LiveEvent.ScanApp.Events.{
-    ScanStarted,
+    DiscoverDomainsRequested,
     DiscoverSubdomainsRequested
   }
 
@@ -27,12 +29,13 @@ defmodule LiveEvent.ScanApp.Gateways.DomainGateway do
 
   require Logger
 
-  def handle(%ScanStarted{scan_id: scan_id, domain: domain}, _metadata) do
-    discover_domains(scan_id, domain)
+  @spec handle(any(), any()) :: :ok
+  def handle(%DiscoverDomainsRequested{scan_id: scan_id, domain: domain}, _metadata) do
+    Task.start(fn -> discover_domains(scan_id, domain) end)
   end
 
   def handle(%DiscoverSubdomainsRequested{scan_id: scan_id, domain: domain}, _metadata) do
-    discover_subdomains(scan_id, domain)
+    Task.start(fn -> discover_subdomains(scan_id, domain) end)
   end
 
   # Mock external service call
@@ -84,40 +87,6 @@ defmodule LiveEvent.ScanApp.Gateways.DomainGateway do
             subdomains: discovered_subdomains
           })
     end
-
-    Task.start(fn ->
-      # Simulate different processing times for each domain
-      Process.sleep(:rand.uniform(3000))
-
-      Logger.info("Finding subdomains for #{domain}")
-
-      base_domain = String.replace(domain, ~r/^www\./, "")
-
-      # Define possible subdomains
-      possible_subdomains = [
-        "www.#{base_domain}",
-        "api.#{base_domain}",
-        "blog.#{base_domain}",
-        "dev.#{base_domain}",
-        "staging.#{base_domain}",
-        "test.#{base_domain}",
-        "admin.#{base_domain}",
-        "mail.#{base_domain}",
-        "support.#{base_domain}",
-        "docs.#{base_domain}"
-      ]
-
-      # Get random number of subdomains (1 to length of possible list)
-      count = :rand.uniform(length(possible_subdomains))
-      discovered_subdomains = Enum.take_random(possible_subdomains, count)
-
-      :ok =
-        LiveEvent.ScanApp.Application.dispatch(%DiscoverSubdomainsSuccess{
-          scan_id: scan_id,
-          domain: domain,
-          subdomains: discovered_subdomains
-        })
-    end)
 
     :ok
   end

@@ -132,7 +132,15 @@ defmodule LiveEvent.ScanApp.Aggregates.Scan do
     %__MODULE__{state | domains: associated_domains, status: :domains_discovered}
   end
 
+  def apply(%__MODULE__{} = state, %DiscoverDomainsFailed{}) do
+    state
+  end
+
   def apply(%__MODULE__{} = state, %DiscoverSubdomainsRequested{}) do
+    state
+  end
+
+  def apply(%__MODULE__{} = state, %DiscoverSubdomainsFailed{}) do
     state
   end
 

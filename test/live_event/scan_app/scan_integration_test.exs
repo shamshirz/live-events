@@ -1,13 +1,9 @@
 defmodule LiveEvent.ScanApp.ScanIntegrationTest do
   use ExUnit.Case
 
-  import Commanded.Assertions.EventAssertions, only: [assert_receive_event: 3]
-
   alias LiveEvent.ScanApp.Aggregates.Scan
 
   alias LiveEvent.ScanApp.Events.{
-    DiscoverSubdomainsRequested,
-    DiscoverSubdomainsSucceeded,
     ScanCompleted
   }
 
@@ -48,7 +44,7 @@ defmodule LiveEvent.ScanApp.ScanIntegrationTest do
         %CompleteScan{scan_id: scan_id}
       ]
 
-      {final_state, events} = process_commands(commands, %Scan{})
+      {_final_state, events} = process_commands(commands, %Scan{})
 
       assert %ScanCompleted{scan_id: ^scan_id} = hd(events)
     end
@@ -62,7 +58,7 @@ defmodule LiveEvent.ScanApp.ScanIntegrationTest do
 
       events =
         if is_struct(events, Commanded.Aggregate.Multi) do
-          {state, events} = Commanded.Aggregate.Multi.run(events)
+          {_state, events} = Commanded.Aggregate.Multi.run(events)
           events
         else
           events

@@ -1,5 +1,9 @@
 # LiveEvent
 
+A Phoenix application demonstrating event sourcing with Commanded, featuring real-time domain scanning and analysis.
+
+## Getting Started
+
 To start your Phoenix server:
 
   * Run `mix setup` to install and setup dependencies
@@ -9,25 +13,57 @@ Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
 
 ## Demo Instructions 🚀
 
-1. Visit [`localhost:4000/analyses`](http://localhost:4000/analyses) in your browser
-2. Click "Start New Analysis" to begin a document processing job
+1. Visit [`localhost:4000/analyses`](http://localhost:4000/scans) in your browser
+2. Click "Start New Analysis" to begin a domain scanning job
 3. Watch as the job progresses through various states:
-   * 📊 Calculating Pages
-   * 🔄 In Progress (with batch processing indicators)
-   * 🔍 Analyzing Results
-   * ✅ Completed
+   * 🚀 Started - Initial scan setup
+   * 🔍 Discovering Domains - Finding associated domains
+   * 🌐 Discovering Subdomains - Scanning each domain for subdomains
+   * ✅ Completed - Final analysis with scoring
+   * ❌ Failed - If errors occur during scanning
 
-Each job simulates processing a document with multiple pages, showing real-time updates through LiveView!
+Each scan demonstrates real-time updates through LiveView as it:
+- Discovers associated domains
+- Finds subdomains for each domain
+- Handles retries for failed operations
+- Calculates a final score based on findings
 
-## Goals
-✅ Experiment with LiveView 1.0
-✅ Experiment with Commanded event sourcing
-✅ Combine event sourcing with pushing updates to liveviews from background jobs
-⏳ Experiment with LangChain / Elixir for AI
+## Features
+
+✅ Event Sourcing with Commanded
+- Process managers for coordinating multi-step scans
+- Aggregates for maintaining scan state
+- Event handlers for side effects
+- Projections for read models
+
+✅ Real-time Updates
+- Phoenix LiveView integration
+- PubSub for broadcasting scan updates
+- ETS-based projections for fast reads
+
+✅ Resilient Processing
+- Automatic retries for failed operations
+- Configurable retry limits
+- Error handling and failure states
+
+✅ Simulated Scanning
+- Mock domain discovery
+- Subdomain detection
+- Scoring system
+
+## Architecture
+
+The application uses:
+- **Commanded** for event sourcing
+- **Phoenix LiveView** for real-time updates
+- **ETS** for high-performance read models
+- **PubSub** for broadcasting updates
 
 ## Next Steps
-* Learn about testing ES systems
-* Learn about retrying actions that are the result of a command
-* Make something that actually works
-* Do something with Fly.io?
-* Learn about LangChain / Elixir for AI
+* Add persistence for projections
+* Implement actual domain scanning logic
+* Add authentication and user management
+* Add more sophisticated scoring algorithms
+* Add export capabilities
+* Add historical analysis views
+* Deploy to production environment

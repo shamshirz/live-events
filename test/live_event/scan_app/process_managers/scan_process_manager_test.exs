@@ -17,6 +17,7 @@ defmodule LiveEvent.ScanApp.ProcessManagers.ScanProcessManagerTest do
 
   alias LiveEvent.ScanApp.Commands.{
     DiscoverSubdomainsRequest,
+    DiscoverDomainsRequest,
     CompleteScan,
     FailScan
   }
@@ -81,15 +82,17 @@ defmodule LiveEvent.ScanApp.ProcessManagers.ScanProcessManagerTest do
       assert %CompleteScan{scan_id: "123"} = Scan.handle(state, event)
     end
 
-    test "fails scan after max domain discovery retries" do
+    test "retries & then fails scan after max domain discovery retries" do
       state = %Scan{scan_id: "123"}
 
       event = %DiscoverDomainsFailed{
         scan_id: "123",
+        domain: "example.com",
         error: "API Error"
       }
 
-      assert [] = Scan.handle(%{state | domain_retries: 2}, event)
+      assert [%DiscoverDomainsRequest{scan_id: "123", domain: "example.com"}] =
+               Scan.handle(%{state | domain_retries: 2}, event)
 
       assert %FailScan{error: "Max DomainDiscovery retries reached"} =
                Scan.handle(%{state | domain_retries: 3}, event)
@@ -100,10 +103,12 @@ defmodule LiveEvent.ScanApp.ProcessManagers.ScanProcessManagerTest do
 
       event = %DiscoverSubdomainsFailed{
         scan_id: "123",
+        domain: "example.com",
         error: "API Error"
       }
 
-      assert [] = Scan.handle(%{state | subdomain_retries: 2}, event)
+      assert [%DiscoverSubdomainsRequest{scan_id: "123", domain: "example.com"}] =
+               Scan.handle(%{state | subdomain_retries: 2}, event)
 
       assert %FailScan{
                scan_id: "123",

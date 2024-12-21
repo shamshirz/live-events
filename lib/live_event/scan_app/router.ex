@@ -10,6 +10,7 @@ defmodule LiveEvent.ScanApp.Router do
     DiscoverSubdomainsRequest,
     DiscoverSubdomainsSuccess,
     DiscoverSubdomainsFail,
+    DiscoverDomainsRequest,
     CompleteScan,
     FailScan
   }
@@ -24,11 +25,12 @@ defmodule LiveEvent.ScanApp.Router do
   dispatch(
     [
       StartScan,
-      DiscoverDomainsSuccess,
       DiscoverDomainsFail,
+      DiscoverDomainsRequest,
+      DiscoverDomainsSuccess,
+      DiscoverSubdomainsFail,
       DiscoverSubdomainsRequest,
       DiscoverSubdomainsSuccess,
-      DiscoverSubdomainsFail,
       CompleteScan,
       FailScan
     ],
